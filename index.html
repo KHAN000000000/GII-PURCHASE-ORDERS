@@ -625,23 +625,68 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let db = JSON.parse(localStorage.getItem('cgi_po_v3') || '{"pos":[]}');
-function saveDB(){ localStorage.setItem('cgi_po_v3', JSON.stringify(db)); }
+const BIN_ID  = '69fd8d27250b1311c31e206e';
+const API_KEY = '$2a$10$/26rWKnLq.UohGT8WEMqS.j5G.6CtfugXKcCvOOAGwuwLdD0GqRVC';
+const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
-if(db.pos.length===0){
-  db.pos.push({
-    id:'po_seed', pono:'ACPO-211/26', date:'2026-02-15',
-    delivery:'on or before 15-Feb-26',
-    supplier:'Globe International Industries',
-    buyer:'Canon Global Industries',
-    ref:'O/0278-0282/CGI/25/H6RTM68U,S,R,D,P', notes:'',
-    items:[
-      {id:'i1',desc:'LABEL MATERIAL - 10CM × 15CM STICKER',uom:'Pcs',qty:1030,price:3.38,cost:0.50,sellingPrice:6.00},
-      {id:'i2',desc:'LABEL MATERIAL - 12.5CM × 6.5CM STICKER',uom:'PCS',qty:3090,price:1.85,cost:0.30,sellingPrice:3.50}
-    ],
-    consumptions:[], createdAt:Date.now()
-  });
-  saveDB();
+let db = { pos: [] };
+let _saveTimer = null;
+
+async function loadDB() {
+  try {
+    const res = await fetch(API_URL + '/latest', {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    const json = await res.json();
+    db = json.record || { pos: [] };
+    if (!db.pos) db.pos = [];
+    db.pos.forEach(po => {
+      if (!po.consumptions) po.consumptions = [];
+      po.items.forEach(it => {
+        if (it.used !== undefined) delete it.used;
+        if (it.cost === undefined) it.cost = 0;
+        if (it.sellingPrice === undefined) it.sellingPrice = it.price * 1.5;
+      });
+    });
+    if (db.pos.length === 0) {
+      db.pos.push({
+        id:'po_seed', pono:'ACPO-211/26', date:'2026-02-15',
+        delivery:'on or before 15-Feb-26',
+        supplier:'Globe International Industries',
+        buyer:'Canon Global Industries',
+        ref:'O/0278-0282/CGI/25/H6RTM68U,S,R,D,P', notes:'',
+        items:[
+          {id:'i1',desc:'LABEL MATERIAL - 10CM × 15CM STICKER',uom:'Pcs',qty:1030,price:3.38,cost:0.50,sellingPrice:6.00},
+          {id:'i2',desc:'LABEL MATERIAL - 12.5CM × 6.5CM STICKER',uom:'PCS',qty:3090,price:1.85,cost:0.30,sellingPrice:3.50}
+        ],
+        consumptions:[], createdAt:Date.now()
+      });
+      await _doSave();
+    }
+  } catch(err) {
+    alert('❌ Cloud load failed: ' + err.message);
+  }
+}
+
+function saveDB() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(_doSave, 1500);
+}
+
+async function _doSave() {
+  try {
+    await fetch(API_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY
+      },
+      body: JSON.stringify(db)
+    });
+    toast('☁️ Saved to cloud');
+  } catch(err) {
+    toast('❌ Cloud save failed');
+  }
 }
 
 db.pos.forEach(po=>{
@@ -2319,8 +2364,14 @@ function checkPassword(){
   const pwd=document.getElementById('login-password').value;
   if(pwd==='KHAN'){
     document.getElementById('login-overlay').style.display='none';
-    showTab('home'); // رح للقائمة الرئيسية بدل الـ dashboard
+    showTab('home');
+    renderDashboard();
   } else {
+    document.getElementById('login-error').textContent='Incorrect password';
+    document.getElementById('login-password').value='';
+    document.getElementById('login-password').focus();
+  }
+}
     document.getElementById('login-error').textContent='Incorrect password';
     document.getElementById('login-password').value='';
     document.getElementById('login-password').focus();
@@ -2339,9 +2390,10 @@ document.getElementById('login-password').addEventListener('keypress',e=>{
   if(e.key==='Enter') checkPassword();
 });
 
-window.onload = function(){
+window.onload = async function(){
   document.getElementById('login-overlay').style.display='flex';
   document.getElementById('login-password').focus();
+  await loadDB();
 };
 </script>
 </body>
