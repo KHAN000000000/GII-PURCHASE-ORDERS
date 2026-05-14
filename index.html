@@ -703,16 +703,13 @@ function getItemUsed(po, itemId){
   return (po.consumptions || [])
     .reduce((total, c) => {
 
-      // لو مفيش itemId في السجل القديم
+      // Fix old records without itemId
       if (!c.itemId) {
-
-        // اربطه بأول item تلقائياً
         c.itemId = po.items[0]?.id || '';
       }
 
-      // احسب فقط لو الـ item مطابق
+      // Count only matching item
       if (c.itemId === itemId) {
-
         return total + (Number(c.totalStickers) || 0);
       }
 
@@ -1349,10 +1346,15 @@ function renderPOList(){
                   ${po.items.map(it=>`<option value="${it.id}">${it.desc} (Rem: ${fmtN(it.qty-getItemUsed(po,it.id))})</option>`).join('')}
                 </select>
               </div>
-              <div class="cons-field">
-                <label>Total Stickers Consumed ▼</label>
-                <input type="number" id="cf-stickers-${po.id}" placeholder="1200" min="0" style="border-color:var(--gold)">
-              </div>
+             <div class="cons-field">
+  <label>Stickers Per CTN ▼</label>
+
+  <input type="number"
+         id="cf-pcs-${po.id}"
+         placeholder="100"
+         min="0"
+         style="border-color:var(--gold)">
+</div>
               <div class="cons-field"><label>Remarks</label><input id="cf-remark-${po.id}" placeholder="Optional"></div>
             </div>
             <div class="cons-actions">
@@ -1387,41 +1389,46 @@ function reopenCard(poId){
 function toggleConsForm(poId){ document.getElementById('cons-form-'+poId).classList.toggle('open'); }
 
 function saveConsumption(poId){
-  const po=db.pos.find(p=>p.id===poId); if(!po) return;
-  const g=id=>(document.getElementById(id)?.value?.trim()||'');
-  const ctn = parseInt(document.getElementById(`cf-ctn-${poId}`)?.value) || 0;
 
-const stickersPerCTN = parseInt(
-  document.getElementById(`cf-pcs-${poId}`)?.value
-) || 0;
+  const po = purchaseOrders.find(p => p.id === poId);
+  if(!po) return;
 
-const stickers = stickersPerCTN * ctn;
- const itemId = document.getElementById(`cf-item-${poId}`)?.value;
+  const itemId = document.getElementById(`cf-item-${poId}`)?.value;
 
-if(!itemId){
-  alert('⚠️ Please select PO Item');
-  return;
-}
-
-if(!itemId){
-  alert('⚠️ Please select PO Item');
-  return;
-}
-  if(!stickers){alert('⚠️ Please enter the number of stickers consumed');return;}
-  const item=po.items.find(i=>i.id===itemId);
-  if(item){
-    const rem=item.qty-getItemUsed(po,itemId);
-    if(stickers>rem&&!confirm(`⚠️ Warning!\nRequested: ${fmtN(stickers)}\nAvailable: ${fmtN(rem)}\n\nProceed anyway?`)) return;
+  if(!itemId){
+    alert('⚠️ Please select PO Item');
+    return;
   }
-  po.consumptions.push({
-    id:uid(), date:g(`cf-date-${poId}`), unit:g(`cf-unit-${poId}`),
-    brand:g(`cf-brand-${poId}`), styleNo:g(`cf-style-${poId}`),
-    poNo:g(`cf-pono-${poId}`), color:g(`cf-color-${poId}`),
-    colorCode:g(`cf-colorcode-${poId}`), part:g(`cf-part-${poId}`),
-    totalCTN:ctn, totalStickers:stickers, itemId, remark:g(`cf-remark-${poId}`)
-  });
-  saveDB(); renderPOList(); renderDashboard(); reopenCard(poId);
-  toast(`✅ Consumption of ${fmtN(stickers)} stickers logged`);
+
+  const ctn = parseInt(
+    document.getElementById(`cf-ctn-${poId}`)?.value
+  ) || 0;
+
+  const stickersPerCTN = parseInt(
+    document.getElementById(`cf-pcs-${poId}`)?.value
+  ) || 0;
+
+  const stickers = stickersPerCTN * ctn;
+
+  const rec = {
+    id: uid(),
+    date: new Date().toISOString(),
+    itemId,
+    cartons: ctn,
+    stickersPerCTN,
+    totalStickers: stickers
+  };
+
+  po.consumptions = po.consumptions || [];
+  po.consumptions.unshift(rec);
+
+  saveAll();
+
+  renderDashboard();
+  renderPOList();
+  renderPODashboard(poId);
+
+  alert('✅ Consumption Saved');
 }
 
 function deleteConsumption(poId,idx){
