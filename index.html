@@ -719,10 +719,11 @@ function toast(msg){
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
 }
-function getItemDesc(po,itemId){
-  const it=po.items.find(i=>i.id===itemId);
+function getItemDesc(po, itemId){
+  let it = po.items.find(i => i.id === itemId);
+  if(!it && po.items.length > 0) it = po.items[0]; // fallback
   if(!it) return '-';
-  return it.desc.length>32?it.desc.substring(0,32)+'…':it.desc;
+  return it.desc.length > 32 ? it.desc.substring(0, 32) + '…' : it.desc;
 }
 
 // Chart instances cache
