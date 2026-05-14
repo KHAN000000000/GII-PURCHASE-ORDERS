@@ -642,11 +642,13 @@ async function loadDB() {
     if (!db.pos) db.pos = [];
     db.pos.forEach(po => {
       if (!po.consumptions) po.consumptions = [];
-      po.items.forEach(it => {
-        if (it.used !== undefined) delete it.used;
-        if (it.cost === undefined) it.cost = 0;
-        if (it.sellingPrice === undefined) it.sellingPrice = it.price * 1.5;
-        // ✅ إصلاح الاستهلاكات القديمة اللي مالهاش itemId
+     po.items.forEach(it => {
+  if (it.used !== undefined) delete it.used;
+  if (it.cost === undefined) it.cost = 0;
+  if (it.sellingPrice === undefined) it.sellingPrice = it.price * 1.5;
+});
+
+// ✅ إصلاح الاستهلاكات القديمة اللي مالهاش itemId
 po.consumptions.forEach(c => {
   if (!c.itemId && po.items.length > 0) {
     c.itemId = po.items[0].id;
