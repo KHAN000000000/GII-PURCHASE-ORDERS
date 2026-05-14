@@ -1389,9 +1389,19 @@ function toggleConsForm(poId){ document.getElementById('cons-form-'+poId).classL
 function saveConsumption(poId){
   const po=db.pos.find(p=>p.id===poId); if(!po) return;
   const g=id=>(document.getElementById(id)?.value?.trim()||'');
-  const stickers=parseInt(document.getElementById(`cf-stickers-${poId}`)?.value)||0;
-  const ctn=parseInt(document.getElementById(`cf-ctn-${poId}`)?.value)||0;
-  const itemId = document.getElementById(`cf-item-${poId}`)?.value;
+  const ctn = parseInt(document.getElementById(`cf-ctn-${poId}`)?.value) || 0;
+
+const stickersPerCTN = parseInt(
+  document.getElementById(`cf-pcs-${poId}`)?.value
+) || 0;
+
+const stickers = stickersPerCTN * ctn;
+ const itemId = document.getElementById(`cf-item-${poId}`)?.value;
+
+if(!itemId){
+  alert('⚠️ Please select PO Item');
+  return;
+}
 
 if(!itemId){
   alert('⚠️ Please select PO Item');
