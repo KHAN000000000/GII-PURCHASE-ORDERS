@@ -699,14 +699,26 @@ const fmtN = n=>Number(n).toLocaleString('en-US');
 const uid  = ()=>'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
 
 function getItemUsed(po, itemId){
-  return (po.consumptions||[])
-    .filter(c => {
-      if(c.itemId === itemId) return true;
-      // fallback: لو itemId فارغ، احسبها على أول item
-      if(!c.itemId && itemId === po.items[0]?.id) return true;
-      return false;
-    })
-    .reduce((a,c) => a + (parseInt(c.totalStickers)||0), 0);
+
+  return (po.consumptions || [])
+    .reduce((total, c) => {
+
+      // لو مفيش itemId في السجل القديم
+      if (!c.itemId) {
+
+        // اربطه بأول item تلقائياً
+        c.itemId = po.items[0]?.id || '';
+      }
+
+      // احسب فقط لو الـ item مطابق
+      if (c.itemId === itemId) {
+
+        return total + (Number(c.totalStickers) || 0);
+      }
+
+      return total;
+
+    }, 0);
 }
 function getTotalUsed(po){ return (po.consumptions||[]).reduce((a,c)=>a+(parseInt(c.totalStickers)||0),0); }
 function getTotalQty(po){ return po.items.reduce((a,i)=>a+i.qty,0); }
@@ -1379,7 +1391,12 @@ function saveConsumption(poId){
   const g=id=>(document.getElementById(id)?.value?.trim()||'');
   const stickers=parseInt(document.getElementById(`cf-stickers-${poId}`)?.value)||0;
   const ctn=parseInt(document.getElementById(`cf-ctn-${poId}`)?.value)||0;
-  const itemId=document.getElementById(`cf-item-${poId}`)?.value||'';
+  const itemId = document.getElementById(`cf-item-${poId}`)?.value;
+
+if(!itemId){
+  alert('⚠️ Please select PO Item');
+  return;
+}
   if(!stickers){alert('⚠️ Please enter the number of stickers consumed');return;}
   const item=po.items.find(i=>i.id===itemId);
   if(item){
