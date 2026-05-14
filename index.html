@@ -693,8 +693,10 @@ const fmt  = n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximu
 const fmtN = n=>Number(n).toLocaleString('en-US');
 const uid  = ()=>'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
 
-function getItemUsed(po,itemId){
-  return (po.consumptions||[]).filter(c=>c.itemId===itemId).reduce((a,c)=>a+(parseInt(c.totalStickers)||0),0);
+function getItemUsed(po, itemId){
+  return (po.consumptions||[])
+    .filter(c => c.itemId === itemId || (!c.itemId && itemId === po.items[0]?.id))
+    .reduce((a,c) => a + (parseInt(c.totalStickers)||0), 0);
 }
 function getTotalUsed(po){ return (po.consumptions||[]).reduce((a,c)=>a+(parseInt(c.totalStickers)||0),0); }
 function getTotalQty(po){ return po.items.reduce((a,i)=>a+i.qty,0); }
