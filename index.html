@@ -642,6 +642,11 @@ async function loadDB() {
     if (!db.pos) db.pos = [];
     db.pos.forEach(po => {
       if (!po.consumptions) po.consumptions = [];
+      po.consumptions.forEach(c => {
+  if (!c.itemId && po.items.length > 0) {
+    c.itemId = po.items[0].id;
+  }
+});
       po.items.forEach(it => {
         if (it.used !== undefined) delete it.used;
         if (it.cost === undefined) it.cost = 0;
@@ -695,7 +700,12 @@ const uid  = ()=>'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
 
 function getItemUsed(po, itemId){
   return (po.consumptions||[])
-    .filter(c => c.itemId === itemId || (!c.itemId && itemId === po.items[0]?.id))
+    .filter(c => {
+      if(c.itemId === itemId) return true;
+      // fallback: لو itemId فارغ، احسبها على أول item
+      if(!c.itemId && itemId === po.items[0]?.id) return true;
+      return false;
+    })
     .reduce((a,c) => a + (parseInt(c.totalStickers)||0), 0);
 }
 function getTotalUsed(po){ return (po.consumptions||[]).reduce((a,c)=>a+(parseInt(c.totalStickers)||0),0); }
