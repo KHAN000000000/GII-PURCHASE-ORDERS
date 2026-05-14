@@ -640,22 +640,25 @@ async function loadDB() {
     const json = await res.json();
     db = json.record || { pos: [] };
     if (!db.pos) db.pos = [];
+
     db.pos.forEach(po => {
       if (!po.consumptions) po.consumptions = [];
-     po.items.forEach(it => {
-  if (it.used !== undefined) delete it.used;
-  if (it.cost === undefined) it.cost = 0;
-  if (it.sellingPrice === undefined) it.sellingPrice = it.price * 1.5;
-});
 
-// ✅ إصلاح الاستهلاكات القديمة اللي مالهاش itemId
-po.consumptions.forEach(c => {
-  if (!c.itemId && po.items.length > 0) {
-    c.itemId = po.items[0].id;
-  }
-});
+      po.items.forEach(it => {
+        if (it.used !== undefined) delete it.used;
+        if (it.cost === undefined) it.cost = 0;
+        if (it.sellingPrice === undefined) it.sellingPrice = it.price * 1.5;
       });
+
+      // ✅ إصلاح الاستهلاكات القديمة اللي مالهاش itemId
+      po.consumptions.forEach(c => {
+        if (!c.itemId && po.items.length > 0) {
+          c.itemId = po.items[0].id;
+        }
+      });
+
     });
+
     if (db.pos.length === 0) {
       db.pos.push({
         id:'po_seed', pono:'ACPO-211/26', date:'2026-02-15',
