@@ -1892,52 +1892,52 @@ function exportPOPDF(poId){
   }, 0);
 
   // Header
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setTextColor(13, 27, 42);
-  doc.text('LABEL PRINTING DEPARTMENT ', left, y);
-  doc.setFontSize(11);
-  doc.text('PURCHASE ORDER - CONSUMPTION REPORT', left, y + 18);
+  doc.text('LABEL PRINTING DEPARTMENT', left, y);
+  doc.setFontSize(10.5);
+  doc.text('PURCHASE ORDER - CONSUMPTION REPORT', left, y + 16);
   
-  doc.setFontSize(9);
-  doc.text(`PO No: ${po.pono || '-'}     |     Date: ${po.date || '-'}     |     Generated: ${new Date().toLocaleDateString('en-GB')}`, left, y + 35);
-  y += 55;
+  doc.setFontSize(8.5);
+  doc.text(`PO No: ${po.pono || '-'}  |  Date: ${po.date || '-'}  |  Generated: ${new Date().toLocaleDateString('en-GB')}`, left, y + 29);
+  y += 48;
 
-  // ==================== PO Info Section ====================
+  // ==================== PO Info Section (مدموج) ====================
   doc.setFillColor(245, 247, 250);
-  doc.rect(left, y, right-left, 130, 'F');
+  doc.rect(left, y, right-left, 105, 'F');
   doc.setDrawColor(13,27,42);
-  doc.rect(left, y, right-left, 130);
+  doc.rect(left, y, right-left, 105);
 
-  const infoY = y + 18;
-  doc.setFontSize(9);
+  const infoY = y + 16;
+  doc.setFontSize(8.8);
+
   doc.text(`Supplier: ${po.supplier || '-'}`, left + 15, infoY);
-  doc.text(`Buyer: ${po.buyer || 'Canon Global Industries'}`, left + 15, infoY + 15);
-  doc.text(`Delivery: ${po.delivery || '-'}`, left + 15, infoY + 30);
+  doc.text(`Buyer: ${po.buyer || 'Canon Global Industries'}`, left + 15, infoY + 13);
+  doc.text(`Delivery: ${po.delivery || '-'}`, left + 15, infoY + 26);
 
-  doc.text(`Order Reference:`, left + 15, infoY + 47);
+  doc.text(`Order Reference:`, left + 15, infoY + 41);
   if (po.ref && po.ref.length > 5) {
-    const maxWidth = right - left - 35;
-    const refLines = doc.splitTextToSize(po.ref, maxWidth);
-    doc.setFontSize(8.2);
-    doc.text(refLines, left + 15, infoY + 60);
-    doc.setFontSize(9);
+    const refLines = doc.splitTextToSize(po.ref, right - left - 40);
+    doc.setFontSize(8);
+    doc.text(refLines, left + 15, infoY + 53);
+    doc.setFontSize(8.8);
   } else {
-    doc.text(po.ref || '-', left + 15, infoY + 60);
+    doc.text(po.ref || '-', left + 15, infoY + 53);
   }
 
-  doc.text(`Total Qty: ${fmtN(tq)}`, right - 190, infoY);
-  doc.text(`Consumed: ${fmtN(tu)} (${Math.round(tu/tq*100)}%)`, right - 190, infoY + 15);
-  doc.text(`Remaining: ${fmtN(tq-tu)}`, right - 190, infoY + 30);
+  doc.text(`Total Qty: ${fmtN(tq)}`, right - 185, infoY);
+  doc.text(`Consumed: ${fmtN(tu)} (${Math.round(tu/tq*100)}%)`, right - 185, infoY + 13);
+  doc.text(`Remaining: ${fmtN(tq-tu)}`, right - 185, infoY + 26);
 
-  y += 150;
+  y += 118;
 
   // Table Title
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.text('CONSUMPTION LOG', left, y);
-  y += 20;
+  y += 18;
 
-  // ==================== Column Widths ====================
-  const colWidths = [48, 42, 58, 65, 58, 40, 48, 95, 280, 55];
+  // Column widths - مضغوطة عشان تدخل في صفحة واحدة
+  const colWidths = [46, 40, 55, 62, 55, 38, 46, 88, 265, 52];
   let colX = [left];
   colWidths.forEach(w => colX.push(colX[colX.length-1] + w));
 
@@ -1945,18 +1945,20 @@ function exportPOPDF(poId){
 
   // Header
   doc.setFillColor(13, 27, 42);
-  doc.rect(left, y, right-left, 24, 'F');
+  doc.rect(left, y, right-left, 22, 'F');
   doc.setTextColor(255,255,255);
-  doc.setFontSize(8.8);
+  doc.setFontSize(8.5);
   headers.forEach((h, i) => {
     const centerX = colX[i] + (colWidths[i] / 2);
-    doc.text(h, centerX, y + 16, { align: 'center' });
+    doc.text(h, centerX, y + 15, { align: 'center' });
   });
-  y += 24;
+  y += 22;
 
-  // Rows
+  // Rows - أكثر كثافة
   doc.setTextColor(40, 40, 40);
-  doc.setFontSize(8.2);
+  doc.setFontSize(8);
+
+  const rowHeight = 29;   // ارتفاع صف أقل
 
   po.consumptions.forEach((c, idx) => {
     const item = po.items.find(i => i.id === c.itemId) || {};
@@ -1967,8 +1969,6 @@ function exportPOPDF(poId){
       c.color || '-', (c.totalCTN||0).toString(), (c.totalStickers||0).toString(),
       c.part || '-', item.desc || '-', 'EGP ' + profit.toFixed(2)
     ];
-
-    const rowHeight = 36;   // زيادة ارتفاع الصف
 
     if(idx % 2 === 0){
       doc.setFillColor(248, 249, 252);
@@ -1982,73 +1982,46 @@ function exportPOPDF(poId){
       if(i > 0) doc.line(x, y, x, y + rowHeight);
     });
 
-        rowData.forEach((text, i) => {
-      if(i === 7){ // Part Column (العمود الجديد)
-        const maxWidth = colWidths[7] - 12;
-        const lines = doc.splitTextToSize(text.toString(), maxWidth);
-        
-        const lineHeight = 9;
-        const totalTextHeight = lines.length * lineHeight;
-        const startY = y + (rowHeight - totalTextHeight) / 2 + 4;
+    rowData.forEach((text, i) => {
+      if(i === 7 || i === 8){ // Part & Item
+        const colIndex = i;
+        const maxW = colWidths[colIndex] - 18;
+        const lines = doc.splitTextToSize(text.toString(), maxW);
+        const lineH = 8.5;
+        const startY = y + (rowHeight - lines.length*lineH)/2 + 4;
 
+        doc.setFontSize(i===7 ? 8 : 7.6);
+        lines.forEach((line, li) => {
+          const centerX = colX[colIndex] + (colWidths[colIndex] / 2);
+          doc.text(line, centerX, startY + li*lineH, { align: 'center' });
+        });
         doc.setFontSize(8);
-        lines.forEach((line, lineIdx) => {
-          const centerX = colX[7] + (colWidths[7] / 2);
-          doc.text(line, centerX, startY + (lineIdx * lineHeight), { align: 'center' });
-        });
-        doc.setFontSize(8.2);
-      }
-      else if(i === 8){ // Item Column
-        const maxWidth = colWidths[8] - 25;
-        const lines = doc.splitTextToSize(text.toString(), maxWidth);
-        
-        const lineHeight = 9;
-        const totalTextHeight = lines.length * lineHeight;
-        const startY = y + (rowHeight - totalTextHeight) / 2 + 3;
-
-        doc.setFontSize(7.7);
-        lines.forEach((line, lineIdx) => {
-          const centerX = colX[8] + (colWidths[8] / 2);
-          doc.text(line, centerX, startY + (lineIdx * lineHeight), { align: 'center' });
-        });
-        doc.setFontSize(8.2);
       } else {
         const centerX = colX[i] + (colWidths[i] / 2);
-        doc.text(text.toString(), centerX, y + 18, { align: 'center' });
+        doc.text(text.toString(), centerX, y + 17, { align: 'center' });
       }
     });
 
     y += rowHeight;
-
-    if(y > 520){
-      doc.addPage();
-      y = 40;
-    }
   });
 
   // Signature Section
-  if (y < 480) {
-    y = 500;
-  } else {
-    doc.addPage();
-    y = 80;
-  }
-
+  y = 555;   // تثبيت التوقيعات في أسفل الصفحة
   doc.setDrawColor(13, 27, 42);
-  doc.setLineWidth(1.5);
+  doc.setLineWidth(1.2);
   doc.line(left, y, right, y);
-  y += 25;
+  y += 22;
 
   const sigWidth = (right - left) / 3;
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(13, 27, 42);
   doc.setFont(undefined, 'bold');
   doc.text('PREPARED BY', left + sigWidth/2, y, { align: 'center' });
-  doc.text('RECEIVED BY', left + sigWidth + sigWidth/2, y, { align: 'center' });
-  doc.text('AUTHORISED SIGNATORY', left + sigWidth*2 + sigWidth/2, y, { align: 'center' });
+  doc.text('RECEIVED BY', left + sigWidth*1.02 + sigWidth/2, y, { align: 'center' });
+  doc.text('AUTHORISED SIGNATORY', left + sigWidth*2.05 + sigWidth/2, y, { align: 'center' });
 
   doc.save(`CGI_PO_${po.pono || 'Report'}_${new Date().toISOString().slice(0,10)}.pdf`);
-  toast('✅ PDF تم تصديره بنجاح');
+  toast('✅ PDF تم تصديره في صفحة واحدة');
 }
 
 function exportPOExcel(poId){
