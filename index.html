@@ -456,9 +456,12 @@
         <div style="font-size:10px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;">GLOBE INTERNATIONAL INDUSTRIES</div>
       </div>
     </div>
-    <div class="login-sub">Enter your password to continue</div>
+    <div class="login-sub">Enter your credentials to continue</div>
+    
+    <input type="text" id="login-username" class="login-input" placeholder="Username" style="margin-bottom:8px;">
     <input type="password" id="login-password" class="login-input" placeholder="Password">
-    <button class="login-btn" onclick="checkPassword()">LOGIN</button>
+    
+    <button class="login-btn" onclick="checkLogin()">LOGIN</button>
     <div id="login-error" class="login-error"></div>
   </div>
 </div>
@@ -2347,17 +2350,28 @@ function showTab(name){
   if(name==='po-list') renderPOList();
 }
 
-function checkPassword(){
-  const pwd=document.getElementById('login-password').value;
-  if(pwd==='KHAN'){
-    document.getElementById('login-overlay').style.display='none';
+function checkLogin(){
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const errorDiv = document.getElementById('login-error');
+
+  // يمكنك إضافة مستخدمين متعددين في المستقبل
+  if(username === "admin" && password === "KHAN"){
+    document.getElementById('login-overlay').style.display = 'none';
     showTab('home');
     renderDashboard();
-  } else {
-    document.getElementById('login-error').textContent='Incorrect password';
-    document.getElementById('login-password').value='';
-    document.getElementById('login-password').focus();
+    toast('✅ Login Successful');
+  } 
+  else {
+    errorDiv.textContent = 'Incorrect Username or Password';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-username').focus();
   }
+}
+
+// للحفاظ على التوافق
+function checkPassword(){
+  checkLogin();
 }
 
 function logout(){
@@ -2368,8 +2382,12 @@ function logout(){
   document.getElementById('login-password').focus();
 }
 
-document.getElementById('login-password').addEventListener('keypress',e=>{
-  if(e.key==='Enter') checkPassword();
+// Login on Enter from either field
+document.getElementById('login-username').addEventListener('keypress', e => {
+  if(e.key === 'Enter') checkLogin();
+});
+document.getElementById('login-password').addEventListener('keypress', e => {
+  if(e.key === 'Enter') checkLogin();
 });
 
 window.onload = async function(){
