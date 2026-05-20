@@ -1225,9 +1225,10 @@ function renderPOList(){
             <td class="item-col" title="${getItemDesc(po,c.itemId)}">${getItemDesc(po,c.itemId)}</td>
             <td style="font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">EGP ${fmt(profit)}</td>
             <td>
-              <span class="del-row" onclick="printPermission('${po.id}',${idx})" title="Print">🖨️</span>
-              <span class="del-row" onclick="deleteConsumption('${po.id}',${idx})" title="Delete">✕</span>
-            </td>
+  <span class="del-row" onclick="printPermission('${po.id}',${idx})" title="Print">🖨️</span>
+  <span class="del-row" onclick="editConsumption('${po.id}',${idx})" title="Edit">✏️</span>
+  <span class="del-row" onclick="deleteConsumption('${po.id}',${idx})" title="Delete">✕</span>
+</td>
           </tr>`;
         }).join('')
       : `<tr><td colspan="13" class="no-records">No consumption records — click "+ Log Consumption"</td></tr>`;
@@ -1361,6 +1362,37 @@ function reopenCard(poId){
 }
 function toggleConsForm(poId){ document.getElementById('cons-form-'+poId).classList.toggle('open'); }
 
+function editConsumption(poId, idx){
+  const po = db.pos.find(p => p.id === poId);
+  if(!po) return;
+  const cons = po.consumptions[idx];
+  if(!cons) return;
+
+  // فتح نموذج الإدخال
+  toggleConsForm(poId);
+
+  // ملء الحقول بالبيانات الحالية
+  document.getElementById(`cf-date-${poId}`).value = cons.date || '';
+  document.getElementById(`cf-unit-${poId}`).value = cons.unit || '';
+  document.getElementById(`cf-brand-${poId}`).value = cons.brand || '';
+  document.getElementById(`cf-style-${poId}`).value = cons.styleNo || '';
+  document.getElementById(`cf-pono-${poId}`).value = cons.poNo || '';
+  document.getElementById(`cf-color-${poId}`).value = cons.color || '';
+  document.getElementById(`cf-colorcode-${poId}`).value = cons.colorCode || '';
+  document.getElementById(`cf-part-${poId}`).value = cons.part || '';
+  document.getElementById(`cf-ctn-${poId}`).value = cons.totalCTN || '';
+  document.getElementById(`cf-stickers-${poId}`).value = cons.totalStickers || '';
+  document.getElementById(`cf-remark-${poId}`).value = cons.remark || '';
+  document.getElementById(`cf-item-${poId}`).value = cons.itemId || '';
+
+  // تغيير زر Save إلى Update + حفظ الـ index
+  const saveBtn = document.querySelector(`#cons-form-${poId} .btn-gold`);
+  if(saveBtn){
+    saveBtn.textContent = '💾 Update';
+    saveBtn.onclick = () => updateConsumption(poId, idx);
+  }
+}
+
 function saveConsumption(poId){
   const po=db.pos.find(p=>p.id===poId); if(!po) return;
   const g=id=>(document.getElementById(id)?.value?.trim()||'');
@@ -1382,6 +1414,47 @@ function saveConsumption(poId){
   });
   saveDB(); renderPOList(); renderDashboard(); reopenCard(poId);
   toast(`✅ Consumption of ${fmtN(stickers)} stickers logged`);
+}
+
+function updateConsumption(poId, idx){
+  const po = db.pos.find(p => p.id === poId);
+  if(!po) return;
+
+  const g = id => (document.getElementById(id)?.value?.trim() || '');
+  const stickers = parseInt(document.getElementById(`cf-stickers-${poId}`)?.value) || 0;
+  const ctn = parseInt(document.getElementById(`cf-ctn-${poId}`)?.value) || 0;
+  const itemId = document.getElementById(`cf-item-${poId}`)?.value || '';
+
+  if(!stickers){
+    alert('⚠️ Please enter the number of stickers consumed');
+    return;
+  }
+
+  // تحديث السجل
+  po.consumptions[idx] = {
+    ...po.consumptions[idx],
+    date: g(`cf-date-${poId}`),
+    unit: g(`cf-unit-${poId}`),
+    brand: g(`cf-brand-${poId}`),
+    styleNo: g(`cf-style-${poId}`),
+    poNo: g(`cf-pono-${poId}`),
+    color: g(`cf-color-${poId}`),
+    colorCode: g(`cf-colorcode-${poId}`),
+    part: g(`cf-part-${poId}`),
+    totalCTN: ctn,
+    totalStickers: stickers,
+    itemId: itemId,
+    remark: g(`cf-remark-${poId}`)
+  };
+
+  saveDB();
+  renderPOList();
+  renderDashboard();
+  reopenCard(poId);
+  
+  // إغلاق النموذج وإعادة زر Save
+  toggleConsForm(poId);
+  toast('✅ Consumption record updated');
 }
 
 function deleteConsumption(poId,idx){
