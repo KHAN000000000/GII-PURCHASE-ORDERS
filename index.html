@@ -1902,11 +1902,11 @@ function exportPOPDF(poId){
   doc.text(`PO No: ${po.pono || '-'}     |     Date: ${po.date || '-'}     |     Generated: ${new Date().toLocaleDateString('en-GB')}`, left, y + 35);
   y += 55;
 
-  // PO Info
+  // ==================== PO Info Section ====================
   doc.setFillColor(245, 247, 250);
-  doc.rect(left, y, right-left, 68, 'F');
+  doc.rect(left, y, right-left, 130, 'F');
   doc.setDrawColor(13,27,42);
-  doc.rect(left, y, right-left, 68);
+  doc.rect(left, y, right-left, 130);
 
   const infoY = y + 18;
   doc.setFontSize(9);
@@ -1914,19 +1914,30 @@ function exportPOPDF(poId){
   doc.text(`Buyer: ${po.buyer || 'Canon Global Industries'}`, left + 15, infoY + 15);
   doc.text(`Delivery: ${po.delivery || '-'}`, left + 15, infoY + 30);
 
+  doc.text(`Order Reference:`, left + 15, infoY + 47);
+  if (po.ref && po.ref.length > 5) {
+    const maxWidth = right - left - 35;
+    const refLines = doc.splitTextToSize(po.ref, maxWidth);
+    doc.setFontSize(8.2);
+    doc.text(refLines, left + 15, infoY + 60);
+    doc.setFontSize(9);
+  } else {
+    doc.text(po.ref || '-', left + 15, infoY + 60);
+  }
+
   doc.text(`Total Qty: ${fmtN(tq)}`, right - 190, infoY);
   doc.text(`Consumed: ${fmtN(tu)} (${Math.round(tu/tq*100)}%)`, right - 190, infoY + 15);
   doc.text(`Remaining: ${fmtN(tq-tu)}`, right - 190, infoY + 30);
 
-  y += 88;
+  y += 150;
 
   // Table Title
   doc.setFontSize(13);
   doc.text('CONSUMPTION LOG', left, y);
   y += 20;
 
-  // Column widths
-  const colWidths = [52, 48, 68, 72, 68, 45, 52, 48, 260, 65];
+  // ==================== Column Widths ====================
+  const colWidths = [48, 42, 58, 65, 58, 40, 48, 95, 280, 55];
   let colX = [left];
   colWidths.forEach(w => colX.push(colX[colX.length-1] + w));
 
@@ -1957,7 +1968,7 @@ function exportPOPDF(poId){
       c.part || '-', item.desc || '-', 'EGP ' + profit.toFixed(2)
     ];
 
-    const rowHeight = 32;
+    const rowHeight = 36;   // زيادة ارتفاع الصف
 
     if(idx % 2 === 0){
       doc.setFillColor(248, 249, 252);
@@ -1972,89 +1983,72 @@ function exportPOPDF(poId){
     });
 
         rowData.forEach((text, i) => {
-      if(i === 8){ // Item Column - محاذاة في المنتصف
-        const maxWidth = colWidths[8] - 16;
+      if(i === 7){ // Part Column (العمود الجديد)
+        const maxWidth = colWidths[7] - 12;
         const lines = doc.splitTextToSize(text.toString(), maxWidth);
         
-        const lineHeight = 9.8;
+        const lineHeight = 9;
         const totalTextHeight = lines.length * lineHeight;
-        const startY = y + (rowHeight - totalTextHeight) / 2 + 4;  // Vertical Center
+        const startY = y + (rowHeight - totalTextHeight) / 2 + 4;
 
+        doc.setFontSize(8);
+        lines.forEach((line, lineIdx) => {
+          const centerX = colX[7] + (colWidths[7] / 2);
+          doc.text(line, centerX, startY + (lineIdx * lineHeight), { align: 'center' });
+        });
+        doc.setFontSize(8.2);
+      }
+      else if(i === 8){ // Item Column
+        const maxWidth = colWidths[8] - 25;
+        const lines = doc.splitTextToSize(text.toString(), maxWidth);
+        
+        const lineHeight = 9;
+        const totalTextHeight = lines.length * lineHeight;
+        const startY = y + (rowHeight - totalTextHeight) / 2 + 3;
+
+        doc.setFontSize(7.7);
         lines.forEach((line, lineIdx) => {
           const centerX = colX[8] + (colWidths[8] / 2);
           doc.text(line, centerX, startY + (lineIdx * lineHeight), { align: 'center' });
         });
+        doc.setFontSize(8.2);
       } else {
-        // باقي الأعمدة
         const centerX = colX[i] + (colWidths[i] / 2);
-        doc.text(text.toString(), centerX, y + 17, { align: 'center' });
+        doc.text(text.toString(), centerX, y + 18, { align: 'center' });
       }
     });
 
     y += rowHeight;
 
-    if(y > 530){
+    if(y > 520){
       doc.addPage();
       y = 40;
     }
   });
 
-    // ====================== SIGNATURE SECTION ======================
-  if (y < 480) {  // لو باقي مساحة كافية في الصفحة
-    y = 500;     // ننزل لأسفل الصفحة
+  // Signature Section
+  if (y < 480) {
+    y = 500;
   } else {
     doc.addPage();
     y = 80;
   }
 
-  // خط فاصل
   doc.setDrawColor(13, 27, 42);
   doc.setLineWidth(1.5);
   doc.line(left, y, right, y);
   y += 25;
 
-  // التوقيعات - ثلاثة أعمدة
   const sigWidth = (right - left) / 3;
-  
   doc.setFontSize(10);
   doc.setTextColor(13, 27, 42);
   doc.setFont(undefined, 'bold');
-
-  // Prepared By
   doc.text('PREPARED BY', left + sigWidth/2, y, { align: 'center' });
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(80, 80, 80);
-  
-
-  // Received By
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(13, 27, 42);
   doc.text('RECEIVED BY', left + sigWidth + sigWidth/2, y, { align: 'center' });
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(80, 80, 80);
- 
-
-  // Authorised By
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(13, 27, 42);
   doc.text('AUTHORISED SIGNATORY', left + sigWidth*2 + sigWidth/2, y, { align: 'center' });
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(80, 80, 80);
-
-  // Footer
 
   doc.save(`CGI_PO_${po.pono || 'Report'}_${new Date().toISOString().slice(0,10)}.pdf`);
-  
-  toast('✅ PDF تم تصديره بنجاح مع قسم التوقيعات');
-
-  doc.save(`CGI_PO_${po.pono || 'Report'}_${new Date().toISOString().slice(0,10)}.pdf`);
-  
-  toast('✅ PDF تم تصديره بنجاح - Item كامل');
+  toast('✅ PDF تم تصديره بنجاح');
 }
 
 function exportPOExcel(poId){
