@@ -635,6 +635,21 @@ const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 let db = { pos: [] };
 let _saveTimer = null;
 
+// ====================== USER MANAGEMENT ======================
+const USERS = [
+  { username: "admin", password: "KHAN",   role: "admin",  name: "Administrator" },
+  { username: "entry", password: "12345",  role: "entry",   name: "Data Entry" }
+];
+
+let currentUser = null;
+
+function hasPermission(permission){
+  if(!currentUser) return false;
+  if(currentUser.role === "admin") return true;
+  return ['view', 'add', 'log_consumption'].includes(permission);
+}
+// ============================================================
+
 async function loadDB() {
   try {
     const res = await fetch(API_URL + '/latest', {
@@ -1229,8 +1244,9 @@ function renderPOList(){
             <td style="font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">EGP ${fmt(profit)}</td>
             <td>
   <span class="del-row" onclick="printPermission('${po.id}',${idx})" title="Print">🖨️</span>
+  ${hasPermission('admin') ? `
   <span class="del-row" onclick="editConsumption('${po.id}',${idx})" title="Edit">✏️</span>
-  <span class="del-row" onclick="deleteConsumption('${po.id}',${idx})" title="Delete">✕</span>
+  <span class="del-row" onclick="deleteConsumption('${po.id}',${idx})" title="Delete">✕</span>` : ''}
 </td>
           </tr>`;
         }).join('')
@@ -1251,11 +1267,13 @@ function renderPOList(){
         </div>
         <div class="po-actions">
           <span class="badge badge-${s}">${statusLabel(s)}</span>
-          <button class="btn btn-gold btn-sm" onclick="event.stopPropagation();editPO('${po.id}')">✏️ Edit</button>
-          <button class="btn btn-blue btn-sm" onclick="event.stopPropagation();printPO('${po.id}')">🖨️ Print</button>
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportPOPDF('${po.id}')">📄 PDF</button>
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportPOExcel('${po.id}')">📊 Excel</button>
-          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deletePO('${po.id}')">🗑 Delete</button>
+         ${hasPermission('admin') ? 
+`<button class="btn btn-gold btn-sm" onclick="event.stopPropagation();editPO('${po.id}')">✏️ Edit</button>` : ''}
+<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();printPO('${po.id}')">🖨️ Print</button>
+<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportPOPDF('${po.id}')">📄 PDF</button>
+<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportPOExcel('${po.id}')">📊 Excel</button>
+${hasPermission('admin') ? 
+`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deletePO('${po.id}')">🗑 Delete</button>` : ''}
         </div>
       </div>
       <div class="po-body" id="body-${po.id}">
@@ -2351,19 +2369,21 @@ function showTab(name){
 }
 
 function checkLogin(){
-  const username = document.getElementById('login-username').value.trim();
+  const username = document.getElementById('login-username').value.trim().toLowerCase();
   const password = document.getElementById('login-password').value.trim();
   const errorDiv = document.getElementById('login-error');
 
-  // يمكنك إضافة مستخدمين متعددين في المستقبل
-  if(username === "admin" && password === "KHAN"){
+  const user = USERS.find(u => u.username === username && u.password === password);
+
+  if(user){
+    currentUser = user;
     document.getElementById('login-overlay').style.display = 'none';
     showTab('home');
     renderDashboard();
-    toast('✅ Login Successful');
+    toast(`✅ مرحبا ${user.name}`);
   } 
   else {
-    errorDiv.textContent = 'Incorrect Username or Password';
+    errorDiv.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
     document.getElementById('login-password').value = '';
     document.getElementById('login-username').focus();
   }
@@ -2375,11 +2395,11 @@ function checkPassword(){
 }
 
 function logout(){
+  currentUser = null;
   document.getElementById('login-overlay').style.display='flex';
-  document.getElementById('home-btn-bar').style.display = 'none'; // إخفاء الزر عند الخروج
   document.getElementById('login-password').value='';
   document.getElementById('login-error').textContent='';
-  document.getElementById('login-password').focus();
+  document.getElementById('login-username').focus();
 }
 
 // Login on Enter from either field
