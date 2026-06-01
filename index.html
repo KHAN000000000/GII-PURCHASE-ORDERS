@@ -1962,160 +1962,205 @@ function exportExcel(){
   }
 }
 
-function exportPOPDF(poId){
+function exportPOPDF(poId) {
   const po = db.pos.find(x => x.id === poId);
-  if(!po){ alert('❌ PO غير موجود'); return; }
+  if (!po) { alert('❌ PO غير موجود'); return; }
 
   const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
-  if(!jsPDFLib){ alert('❌ jsPDF not available'); return; }
+  if (!jsPDFLib) { alert('❌ jsPDF not available'); return; }
 
   const doc = new jsPDFLib({ unit: 'pt', format: 'a4', orientation: 'landscape' });
-  
   const pageWidth = 841.89;
-  const left = 28;
-  const right = pageWidth - 28;
-  let y = 35;
+  const left = 32;
+  const right = pageWidth - 32;
+  let y = 38;
 
   const tq = getTotalQty(po);
   const tu = getTotalUsed(po);
-  const ta = getTotalValue(po);
-  const ua = getUsedValue(po);
-  const tp2 = (po.consumptions||[]).reduce((sum, c) => {
+  const rem = tq - tu;
+  const tp = (po.consumptions || []).reduce((sum, c) => {
     const it = po.items.find(i => i.id === c.itemId) || {};
-    return sum + ((it.sellingPrice||0) - (it.cost||0)) * (c.totalStickers||0);
+    return sum + ((it.sellingPrice || 0) - (it.cost || 0)) * (c.totalStickers || 0);
   }, 0);
 
-  // Header
-  doc.setFontSize(15);
+  // ====================== HEADER ======================
+  doc.setFontSize(16.5);
   doc.setTextColor(13, 27, 42);
   doc.text('LABEL PRINTING DEPARTMENT', left, y);
-  doc.setFontSize(10.5);
-  doc.text('PURCHASE ORDER - CONSUMPTION REPORT', left, y + 16);
-  
-  doc.setFontSize(8.5);
-  doc.text(`PO No: ${po.pono || '-'}  |  Date: ${po.date || '-'}  |  Generated: ${new Date().toLocaleDateString('en-GB')}`, left, y + 29);
-  y += 48;
 
-  // ==================== PO Info Section (مدموج) ====================
-  doc.setFillColor(245, 247, 250);
-  doc.rect(left, y, right-left, 105, 'F');
-  doc.setDrawColor(13,27,42);
-  doc.rect(left, y, right-left, 105);
+  doc.setFontSize(11.8);
+  doc.text('PURCHASE ORDER - CONSUMPTION REPORT', left, y + 23);
+
+  doc.setFontSize(9);
+  doc.text(`PO No: ${po.pono || '-'} | Date: ${po.date || '-'} | Generated: ${new Date().toLocaleDateString('en-GB')}`, left, y + 39);
+  y += 72;
+
+  // ====================== INFO BOX ======================
+  doc.setFillColor(240, 245, 253);
+  doc.rect(left, y, right - left, 88, 'F');
+  doc.setDrawColor(13, 27, 42);
+  doc.rect(left, y, right - left, 88);
 
   const infoY = y + 16;
-  doc.setFontSize(8.8);
+  doc.setFontSize(9.6);
+  doc.setTextColor(13, 27, 42);
 
-  doc.text(`Supplier: ${po.supplier || '-'}`, left + 15, infoY);
-  doc.text(`Buyer: ${po.buyer || 'Canon Global Industries'}`, left + 15, infoY + 13);
-  doc.text(`Delivery: ${po.delivery || '-'}`, left + 15, infoY + 26);
-
-  doc.text(`Order Reference:`, left + 15, infoY + 41);
-  if (po.ref && po.ref.length > 5) {
-    const refLines = doc.splitTextToSize(po.ref, right - left - 40);
-    doc.setFontSize(8);
-    doc.text(refLines, left + 15, infoY + 53);
-    doc.setFontSize(8.8);
-  } else {
-    doc.text(po.ref || '-', left + 15, infoY + 53);
-  }
+  doc.text(`Supplier: ${po.supplier || 'LOCAL PURCHASE'}`, left + 18, infoY);
+  doc.text(`Buyer: ${po.buyer || 'GLOBE INTERNATIONAL INDUSTRIES'}`, left + 18, infoY + 16);
+  doc.text(`Delivery: ${po.delivery || '-'}`, left + 18, infoY + 32);
+  doc.text(`Order Reference: ${po.ref || '-'}`, left + 18, infoY + 48);
 
   doc.text(`Total Qty: ${fmtN(tq)}`, right - 185, infoY);
-  doc.text(`Consumed: ${fmtN(tu)} (${Math.round(tu/tq*100)}%)`, right - 185, infoY + 13);
-  doc.text(`Remaining: ${fmtN(tq-tu)}`, right - 185, infoY + 26);
+  doc.text(`Consumed: ${fmtN(tu)} (${Math.round(tu/tq*100)}%)`, right - 185, infoY + 16);
+  doc.text(`Remaining: ${fmtN(rem)}`, right - 185, infoY + 32);
 
-  y += 118;
+  y += 100;
 
-  // Table Title
-  doc.setFontSize(12);
+  // ====================== TABLE TITLE ======================
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
   doc.text('CONSUMPTION LOG', left, y);
-  y += 18;
+  doc.setFont(undefined, 'normal');
+  y += 15;
 
-  // Column widths - مضغوطة عشان تدخل في صفحة واحدة
-  const colWidths = [46, 40, 55, 62, 55, 38, 46, 88, 265, 52];
+  // ====================== حساب المساحة المتاحة للجدول ======================
+  const pageHeight   = 595;   // A4 landscape height
+  const sigBlockH    = 75;    // ارتفاع قسم التوقيع
+  const sigMargin    = 20;    // مسافة بين الجدول والتوقيع
+  const tableWidth   = right - left;  // 777pt
+  const tableStartY  = y;
+  const maxTableH    = pageHeight - tableStartY - sigBlockH - sigMargin - 10;
+
+  const numRows      = (po.consumptions || []).length;
+  const HEADER_H     = 22;
+
+  // ── حساب ROW_H المناسب لضمان كل الصفوف في المساحة المتاحة ──
+  const availableForRows = maxTableH - HEADER_H;
+  const RAW_ROW_H    = numRows > 0 ? Math.floor(availableForRows / numRows) : 22;
+  const ROW_H        = Math.min(Math.max(RAW_ROW_H, 14), 28); // بين 14 و 28
+
+  // ── حجم الخط بناءً على ROW_H ──
+  const DATA_FONT    = ROW_H <= 16 ? 6.5 : ROW_H <= 20 ? 7.5 : 8;
+  const HDR_FONT     = DATA_FONT + 0.5;
+
+  // ====================== توزيع الأعمدة ======================
+  const colWidths = [58, 34, 60, 64, 110, 28, 52, 88, 0, 68];
+  const fixedW    = colWidths.reduce((a,b)=>a+b,0);
+  colWidths[8]    = tableWidth - fixedW; // Item يأخذ الباقي
+
   let colX = [left];
   colWidths.forEach(w => colX.push(colX[colX.length-1] + w));
 
   const headers = ['Date','Unit','Brand','Style','Color','CTN','Stickers','Part','Item','Profit'];
 
-  // Header
+  // ── Header Row ──
   doc.setFillColor(13, 27, 42);
-  doc.rect(left, y, right-left, 22, 'F');
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(8.5);
+  doc.rect(left, y, tableWidth, HEADER_H, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(HDR_FONT);
+  doc.setFont(undefined, 'bold');
+
   headers.forEach((h, i) => {
-    const centerX = colX[i] + (colWidths[i] / 2);
-    doc.text(h, centerX, y + 15, { align: 'center' });
+    doc.text(h, colX[i] + colWidths[i] / 2, y + HEADER_H * 0.68, { align: 'center' });
   });
-  y += 22;
+  y += HEADER_H;
 
-  // Rows - أكثر كثافة
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(8);
+  // ── Data Rows ──
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(DATA_FONT);
 
-  const rowHeight = 29;   // ارتفاع صف أقل
+  (po.consumptions || []).forEach((c, idx) => {
+    const item   = po.items.find(i => i.id === c.itemId) || {};
+    const profit = ((item.sellingPrice || 0) - (item.cost || 0)) * (c.totalStickers || 0);
 
-  po.consumptions.forEach((c, idx) => {
-    const item = po.items.find(i => i.id === c.itemId) || {};
-    const profit = ((item.sellingPrice||0) - (item.cost||0)) * (c.totalStickers||0);
+    // خلفية متناوبة
+    doc.setFillColor(idx % 2 === 0 ? 248 : 255, idx % 2 === 0 ? 249 : 255, idx % 2 === 0 ? 252 : 255);
+    doc.rect(left, y, tableWidth, ROW_H, 'F');
 
-    const rowData = [
-      c.date || '-', c.unit || '-', c.brand || '-', c.styleNo || '-',
-      c.color || '-', (c.totalCTN||0).toString(), (c.totalStickers||0).toString(),
-      c.part || '-', item.desc || '-', 'EGP ' + profit.toFixed(2)
+    // إطار الصف + خطوط عمودية
+    doc.setDrawColor(210, 218, 230);
+    doc.setLineWidth(0.25);
+    doc.rect(left, y, tableWidth, ROW_H);
+    colX.slice(1, -1).forEach(cx => doc.line(cx, y, cx, y + ROW_H));
+
+    // نص الصف
+    doc.setTextColor(30, 40, 60);
+    const midY = y + ROW_H / 2 + DATA_FONT * 0.35;
+
+    const cells = [
+      c.date       || '-',
+      c.unit       || '-',
+      c.brand      || '-',
+      c.styleNo    || '-',
+      c.color      || '-',
+      (c.totalCTN  || 0).toString(),
+      (c.totalStickers || 0).toLocaleString(),
+      c.part       || '-',
+      null,   // Item رسم منفصل
+      null    // Profit رسم منفصل
     ];
 
-    if(idx % 2 === 0){
-      doc.setFillColor(248, 249, 252);
-      doc.rect(left, y, right-left, rowHeight, 'F');
-    }
-
-    doc.setDrawColor(210, 210, 210);
-    doc.rect(left, y, right-left, rowHeight);
-
-    colX.forEach((x, i) => {
-      if(i > 0) doc.line(x, y, x, y + rowHeight);
+    cells.forEach((text, i) => {
+      if (text === null) return;
+      doc.text(text, colX[i] + colWidths[i] / 2, midY, { align: 'center' });
     });
 
-    rowData.forEach((text, i) => {
-      if(i === 7 || i === 8){ // Part & Item
-        const colIndex = i;
-        const maxW = colWidths[colIndex] - 18;
-        const lines = doc.splitTextToSize(text.toString(), maxW);
-        const lineH = 8.5;
-        const startY = y + (rowHeight - lines.length*lineH)/2 + 4;
+    // ── Item — يسار، wrap إن احتاج ──
+    const itemText  = item.desc || '-';
+    const itemLines = doc.splitTextToSize(itemText, colWidths[8] - 6);
+    const lineH     = DATA_FONT * 1.35;
+    const blockH    = itemLines.length * lineH;
+    const itemY0    = y + (ROW_H - blockH) / 2 + lineH * 0.85;
+    itemLines.forEach((ln, li) => doc.text(ln, colX[8] + 4, itemY0 + li * lineH));
 
-        doc.setFontSize(i===7 ? 8 : 7.6);
-        lines.forEach((line, li) => {
-          const centerX = colX[colIndex] + (colWidths[colIndex] / 2);
-          doc.text(line, centerX, startY + li*lineH, { align: 'center' });
-        });
-        doc.setFontSize(8);
-      } else {
-        const centerX = colX[i] + (colWidths[i] / 2);
-        doc.text(text.toString(), centerX, y + 17, { align: 'center' });
-      }
-    });
+    // ── Profit — ملوّن ──
+    doc.setTextColor(profit >= 0 ? 10 : 200, profit >= 0 ? 130 : 40, profit >= 0 ? 70 : 40);
+    doc.text('EGP ' + profit.toFixed(2), colX[9] + colWidths[9] / 2, midY, { align: 'center' });
+    doc.setTextColor(30, 40, 60);
 
-    y += rowHeight;
+    y += ROW_H;
   });
 
-  // Signature Section
-  y = 555;   // تثبيت التوقيعات في أسفل الصفحة
+  // ====================== SIGNATURES ======================
+  // التوقيعات تيجي بعد الجدول مباشرةً بمسافة صغيرة
+  y += sigMargin;
+
+  // خط فاصل
   doc.setDrawColor(13, 27, 42);
   doc.setLineWidth(1.2);
   doc.line(left, y, right, y);
   y += 22;
 
-  const sigWidth = (right - left) / 3;
+  // خطوط التوقيع
+  const sigW = (right - left) / 3;
+  const sigLineY = y + 32;
+
+  doc.setDrawColor(13, 27, 42);
+  doc.setLineWidth(0.8);
+  // خطوط تحت الأسماء
+  [0, 1, 2].forEach(i => {
+    const sx = left + sigW * i + sigW * 0.1;
+    const ex = left + sigW * i + sigW * 0.9;
+    doc.line(sx, sigLineY, ex, sigLineY);
+  });
+
   doc.setFontSize(9.5);
   doc.setTextColor(13, 27, 42);
   doc.setFont(undefined, 'bold');
-  doc.text('PREPARED BY', left + sigWidth/2, y, { align: 'center' });
-  doc.text('RECEIVED BY', left + sigWidth*1.02 + sigWidth/2, y, { align: 'center' });
-  doc.text('AUTHORISED SIGNATORY', left + sigWidth*2.05 + sigWidth/2, y, { align: 'center' });
 
-  doc.save(`CGI_PO_${po.pono || 'Report'}_${new Date().toISOString().slice(0,10)}.pdf`);
-  toast('✅ PDF تم تصديره في صفحة واحدة');
+  doc.text('PREPARED BY',        left + sigW * 0.5, y,      { align: 'center' });
+  doc.text('RECEIVED BY',        left + sigW * 1.5, y,      { align: 'center' });
+  doc.text('AUTHORISED SIGNATORY', left + sigW * 2.5, y,    { align: 'center' });
+
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 110, 130);
+  doc.text('Warehouse Keeper',   left + sigW * 0.5, sigLineY + 12, { align: 'center' });
+  doc.text('Production Manager', left + sigW * 1.5, sigLineY + 12, { align: 'center' });
+  doc.text('Finance Manager',    left + sigW * 2.5, sigLineY + 12, { align: 'center' });
+
+  doc.save(`PO_${po.pono || 'Report'}_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('✅ تم تحسين الجدول - أصبح أكثر تناسقاً الآن');
 }
 
 function exportPOExcel(poId){
